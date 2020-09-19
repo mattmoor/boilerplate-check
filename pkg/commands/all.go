@@ -14,27 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package commands
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/mattmoor/boilerplate-check/pkg/commands"
 	"github.com/spf13/cobra"
 )
 
-func main() {
-	rootCmd := &cobra.Command{
-		Use:   os.Args[0],
-		Short: "A tool for checking file header boilerplate.",
-	}
-
-	commands.AddAll(rootCmd)
-
-	err := rootCmd.Execute()
-	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		os.Exit(1)
-	}
+func AddAll(cmd *cobra.Command) {
+	cmd.AddCommand(NewVersionCommand())
 }
