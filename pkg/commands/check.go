@@ -173,7 +173,8 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 
 		for range co.boilerplateLines[1:] {
 			if !scanner.Scan() {
-				cmd.Printf("%s:%d: incomplete boilerplate\n", path, idx)
+				cmd.Printf("%s:%d: incomplete boilerplate, missing:\n%s", path, idx,
+					strings.Join(co.boilerplateLines[len(lines):], "\n"))
 				return nil
 			}
 
@@ -185,7 +186,7 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 		// isn't part of the diff, then reviewdog will filter the error.
 		for i := range lines {
 			if co.boilerplateLines[i] != lines[i] {
-				cmd.Printf("%s:%d: %s", path, idx+i, cmp.Diff(co.boilerplateLines[i:], lines[i:]))
+				cmd.Printf("%s:%d: found mismatched boilerplate lines:\n%s", path, idx+i, cmp.Diff(co.boilerplateLines[i:], lines[i:]))
 				break
 			}
 		}
