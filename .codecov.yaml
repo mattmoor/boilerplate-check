@@ -1,3 +1,4 @@
 ignore:
   - "hack"
   - "vendor"
+  - "**/testdata/**"
