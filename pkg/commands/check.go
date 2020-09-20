@@ -180,8 +180,14 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 			lines = append(lines, co.normalize(scanner.Text()))
 		}
 
-		if !cmp.Equal(co.boilerplateLines, lines) {
-			cmd.Printf("%s:%d: %s", path, idx, cmp.Diff(co.boilerplateLines, lines))
+		// We comment on the first bad line instead of the first line of the comment
+		// because if the error is a change, and the first line of the comment block
+		// isn't part of the diff, then reviewdog will filter the error.
+		for i := range lines {
+			if co.boilerplateLines[i] != lines[i] {
+				cmd.Printf("%s:%d: %s", path, idx+i, cmp.Diff(co.boilerplateLines[i:], lines[i:]))
+				break
+			}
 		}
 		return nil
 	})
