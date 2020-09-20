@@ -107,11 +107,11 @@ func TestCheckRunE(t *testing.T) {
 			"--file-extension", "mm",
 			"--exclude", "[^o].bad.mm",
 		},
-		want: `testdata/typo.bad.mm:2: found mismatched boilerplate lines:
+		want: denormalize(`testdata/typo.bad.mm:2: found mismatched boilerplate lines:
 {[]string}[0]:
 	-: "Copyright YYYY Matt Moore"
 	+: "Copyright YYYY Matt More"
-`,
+`),
 	}, {
 		name: "with whitespace mismatch error",
 		args: []string{
@@ -183,7 +183,7 @@ limitations under the License.
 			"--file-extension", "mm",
 			"--exclude", "[^g].bad.mm",
 		},
-		want: `testdata/missing.bad.mm:1: missing boilerplate:
+		want: denormalize(`testdata/missing.bad.mm:1: missing boilerplate:
 /*
 Copyright YYYY Matt Moore
 
@@ -199,7 +199,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-`,
+`),
 	}}
 
 	for _, test := range tests {

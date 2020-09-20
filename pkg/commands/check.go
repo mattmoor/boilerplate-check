@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/spf13/cobra"
@@ -83,7 +84,7 @@ func (co *checkOptions) PreRunE(cmd *cobra.Command, args []string) error {
 	raw := strings.Split(string(bts), "\n")
 	co.boilerplateLines = make([]string, 0, len(raw))
 	for _, rl := range raw {
-		co.boilerplateLines = append(co.boilerplateLines, co.normalize(rl))
+		co.boilerplateLines = append(co.boilerplateLines, normalize(rl))
 	}
 
 	if co.FileExtension == "" {
@@ -119,16 +120,6 @@ func (co *checkOptions) match(path string) bool {
 	return true
 }
 
-// TODO(mattmoor): Fix this y10k bug.
-var matchYear = regexp.MustCompile("[0-9][0-9][0-9][0-9]")
-
-// normalize strips year-like strings out in favor of YYYY,
-// so that we do not complain about older files with otherwise
-// fine headers.
-func (co *checkOptions) normalize(line string) string {
-	return matchYear.ReplaceAllString(line, "YYYY")
-}
-
 func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 	return filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -152,11 +143,12 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 
 		// Find the first matching line of the file.
 		idx, found := 1, false
+		// TODO(mattmoor): Consider making the number of lines to scan a flag.
 		for ; idx <= 10; idx++ {
 			if !scanner.Scan() {
 				break
 			}
-			line := co.normalize(scanner.Text())
+			line := normalize(scanner.Text())
 			if line == co.boilerplateLines[0] {
 				found = true
 				break
@@ -164,7 +156,7 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 		}
 		if !found {
 			cmd.Printf("%s:%d: missing boilerplate:\n%s",
-				path, 1, strings.Join(co.boilerplateLines, "\n"))
+				path, 1, denormalize(strings.Join(co.boilerplateLines, "\n")))
 			return nil
 		}
 
@@ -174,11 +166,11 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 		for range co.boilerplateLines[1:] {
 			if !scanner.Scan() {
 				cmd.Printf("%s:%d: incomplete boilerplate, missing:\n%s", path, idx,
-					strings.Join(co.boilerplateLines[len(lines):], "\n"))
+					denormalize(strings.Join(co.boilerplateLines[len(lines):], "\n")))
 				return nil
 			}
 
-			lines = append(lines, co.normalize(scanner.Text()))
+			lines = append(lines, normalize(scanner.Text()))
 		}
 
 		// We comment on the first bad line instead of the first line of the comment
@@ -186,10 +178,26 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 		// isn't part of the diff, then reviewdog will filter the error.
 		for i := range lines {
 			if co.boilerplateLines[i] != lines[i] {
-				cmd.Printf("%s:%d: found mismatched boilerplate lines:\n%s", path, idx+i, cmp.Diff(co.boilerplateLines[i:], lines[i:]))
+				cmd.Printf("%s:%d: found mismatched boilerplate lines:\n%s",
+					path, idx+i, denormalize(cmp.Diff(co.boilerplateLines[i:], lines[i:])))
 				break
 			}
 		}
 		return nil
 	})
+}
+
+// TODO(mattmoor): Fix this y10k bug.
+var matchYear = regexp.MustCompile("[0-9][0-9][0-9][0-9]")
+
+// normalize strips year-like strings out in favor of YYYY,
+// so that we do not complain about older files with otherwise
+// fine headers.
+func normalize(line string) string {
+	return matchYear.ReplaceAllString(line, "YYYY")
+}
+
+// denormalize replaces YYYY with the current year.
+func denormalize(line string) string {
+	return strings.ReplaceAll(line, "YYYY", fmt.Sprint(time.Now().Year()))
 }
