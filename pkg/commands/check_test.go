@@ -65,7 +65,7 @@ func TestCheckPreRunE(t *testing.T) {
 		},
 		wantErr: fmt.Errorf("error compiling --exclude pattern %q: error parsing regexp: unexpected ): `)(`", ")("),
 	}, {
-		name: "no errors, with mmod regexp",
+		name: "no errors, with good regexp",
 		args: []string{
 			"--boilerplate", "testdata/boilerplate.mm.txt",
 			"--file-extension", "mm",
@@ -101,15 +101,67 @@ func TestCheckRunE(t *testing.T) {
 		args []string
 		want string
 	}{{
-		name: "with mismatch error",
+		name: "with typo mismatch error",
 		args: []string{
 			"--boilerplate", "testdata/boilerplate.mm.txt",
 			"--file-extension", "mm",
 			"--exclude", "[^o].bad.mm",
 		},
-		want: `testdata/typo.bad.mm:2: {[]string}[0]:
+		want: `testdata/typo.bad.mm:2: found mismatched boilerplate lines:
+{[]string}[0]:
 	-: "Copyright YYYY Matt Moore"
 	+: "Copyright YYYY Matt More"
+`,
+	}, {
+		name: "with whitespace mismatch error",
+		args: []string{
+			"--boilerplate", "testdata/boilerplate.mm.txt",
+			"--file-extension", "mm",
+			"--exclude", "[^d].bad.mm",
+		},
+		want: `testdata/trimmed.bad.mm:3: found mismatched boilerplate lines:
+{[]string}[0->?]:
+	-: ""
+	+: <non-existent>
+{[]string}[4->?]:
+	-: ""
+	+: <non-existent>
+{[]string}[6->?]:
+	-: ""
+	+: <non-existent>
+{[]string}[?->10]:
+	-: <non-existent>
+	+: ""
+{[]string}[?->11]:
+	-: <non-existent>
+	+: "// Package foo builds widgets"
+{[]string}[?->12]:
+	-: <non-existent>
+	+: "package foo"
+`,
+	}, {
+		name: "with http[s] mismatch error",
+		args: []string{
+			"--boilerplate", "testdata/boilerplate.mm.txt",
+			"--file-extension", "mm",
+			"--exclude", "[^s].bad.mm",
+		},
+		want: `testdata/https.bad.mm:8: found mismatched boilerplate lines:
+{[]string}[0]:
+	-: "    http://www.apache.org/licenses/LICENSE-2.0"
+	+: "    https://www.apache.org/licenses/LICENSE-2.0"
+`,
+	}, {
+		name: "with tab/space mismatch error",
+		args: []string{
+			"--boilerplate", "testdata/boilerplate.mm.txt",
+			"--file-extension", "mm",
+			"--exclude", "[^b].bad.mm",
+		},
+		want: `testdata/tab.bad.mm:8: found mismatched boilerplate lines:
+{[]string}[0]:
+	-: "    http://www.apache.org/licenses/LICENSE-2.0"
+	+: "\thttp://www.apache.org/licenses/LICENSE-2.0"
 `,
 	}, {
 		name: "with too short error",
@@ -118,7 +170,11 @@ func TestCheckRunE(t *testing.T) {
 			"--file-extension", "mm",
 			"--exclude", "[^t].bad.mm",
 		},
-		want: `testdata/short.bad.mm:1: incomplete boilerplate
+		want: `testdata/short.bad.mm:1: incomplete boilerplate, missing:
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 `,
 	}, {
 		name: "with no header error",
