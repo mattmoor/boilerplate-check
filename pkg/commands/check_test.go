@@ -107,7 +107,7 @@ func TestCheckRunE(t *testing.T) {
 			"--file-extension", "mm",
 			"--exclude", "[^o].bad.mm",
 		},
-		want: `testdata/typo.bad.mm:1: {[]string}[1]:
+		want: `testdata/typo.bad.mm:2: {[]string}[0]:
 	-: "Copyright YYYY Matt Moore"
 	+: "Copyright YYYY Matt More"
 `,
