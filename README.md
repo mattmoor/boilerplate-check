@@ -65,7 +65,7 @@ The following shows a very simple integration with Github Actions and
 [reviewdog](https://github.com/reviewdog/reviewdog):
 
 ```yaml
-name: Code Style
+name: Boilerplate
 
 on:
   pull_request:
@@ -73,9 +73,28 @@ on:
 
 jobs:
 
-  lint:
-    name: Lint
+  check:
+    name: Boilerplate Check
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Keep running if one leg fails.
+      matrix:
+        extension:
+        - go
+        - sh
+        - yaml
+        - java
+
+        # Map between extension and human-readable name.
+        include:
+        - extension: go
+          language: Go
+        - extension: sh
+          language: Bash
+        - extension: yaml
+          language: YAML
+        - extension: java
+          language: Java
 
     steps:
 
@@ -103,25 +122,29 @@ jobs:
 
           echo "::add-path::${TEMP_PATH}"
 
-      - name: Go license boilerplate
+      - id: boilerplate_txt
+        uses: andstor/file-existence-action@v1
+        with:
+          files: ./hack/boilerplate/boilerplate.${{ matrix.extension }}.txt
+      - name: ${{ matrix.language }} license boilerplate
         shell: bash
-        if: ${{ always() }}
+        if: ${{ steps.boilerplate_txt.outputs.files_exists == 'true' }}
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
         run: |
           set -e
           cd "${GITHUB_WORKSPACE}" || exit 1
 
-          echo '::group:: Running github.com/mattmoor/boilerplate-check for Go with reviewdog 🐶 ...'
+          echo '::group:: Running github.com/mattmoor/boilerplate-check for ${{ matrix.language }} with reviewdog 🐶 ...'
           # Don't fail because of boilerplate-check
           set +o pipefail
           boilerplate-check check \
-            --boilerplate ./hack/boilerplate/boilerplate.go.txt \
-            --file-extension go \
+            --boilerplate ./hack/boilerplate/boilerplate.${{ matrix.extension }}.txt \
+            --file-extension ${{ matrix.extension }} \
             --exclude "(vendor|third_party)/" |
           reviewdog -efm="%A%f:%l: %m" \
                 -efm="%C%.%#" \
-                -name="Go headers" \
+                -name="${{ matrix.language }} headers" \
                 -reporter="github-pr-check" \
                 -filter-mode="diff_context" \
                 -fail-on-error="true" \
