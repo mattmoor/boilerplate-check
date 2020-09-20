@@ -26,7 +26,7 @@ func TestAddAll(t *testing.T) {
 	cmd := &cobra.Command{}
 	AddAll(cmd)
 
-	if got, want := len(cmd.Commands()), 1; got != want {
+	if got, want := len(cmd.Commands()), 2; got != want {
 		t.Errorf("len(cmd.Commands()) = %d, wanted %d", got, want)
 	}
 }
