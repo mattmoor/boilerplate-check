@@ -1,9 +1,8 @@
 # boilerplate-check
 
 This is still under active development, but this tool is intended to flag any
-mismatched file headers against a provided boilerplate file.  It ignores the
+mismatched file headers against a provided boilerplate file. It ignores the
 year, so that old files don't become false positives.
-
 
 ## Install
 
@@ -69,10 +68,9 @@ name: Boilerplate
 
 on:
   pull_request:
-    branches: [ '*' ]
+    branches: ["*"]
 
 jobs:
-
   check:
     name: Boilerplate Check
     runs-on: ubuntu-latest
@@ -80,24 +78,23 @@ jobs:
       fail-fast: false # Keep running if one leg fails.
       matrix:
         extension:
-        - go
-        - sh
-        - yaml
-        - java
+          - go
+          - sh
+          - yaml
+          - java
 
         # Map between extension and human-readable name.
         include:
-        - extension: go
-          language: Go
-        - extension: sh
-          language: Bash
-        - extension: yaml
-          language: YAML
-        - extension: java
-          language: Java
+          - extension: go
+            language: Go
+          - extension: sh
+            language: Bash
+          - extension: yaml
+            language: YAML
+          - extension: java
+            language: Java
 
     steps:
-
       - name: Set up Go 1.14.x
         uses: actions/setup-go@v2
         with:
