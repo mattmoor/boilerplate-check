@@ -9,7 +9,7 @@ year, so that old files don't become false positives.
 You can install `boilerplate-check` with:
 
 ```
-go get github.com/mattmoor/boilerplate-check
+GO111MODULE=off go get github.com/mattmoor/boilerplate-check/cmd/boilerplate-check
 ```
 
 ## Running
