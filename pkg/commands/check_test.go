@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -218,6 +220,115 @@ limitations under the License.
 			got := output.String()
 			if test.want != got {
 				t.Errorf("Execute() = %s, wanted %s", got, test.want)
+			}
+		})
+	}
+}
+
+func TestCheckFix(t *testing.T) {
+	tests := []struct {
+		desc          string
+		inputFile     string
+		wantExitError bool
+		wantNoChanges bool
+	}{{
+		desc:          "typo in copyright name",
+		inputFile:     "testdata/typo.bad.mm",
+		wantExitError: true,
+	}, {
+		desc:          "incomplete boilerplate",
+		inputFile:     "testdata/short.bad.mm",
+		wantExitError: true,
+	}, {
+		desc:          "missing boilerplate",
+		inputFile:     "testdata/missing.bad.mm",
+		wantExitError: true,
+	}, {
+		desc:          "https instead of http",
+		inputFile:     "testdata/https.bad.mm",
+		wantExitError: true,
+	}, {
+		desc:          "tab instead of spaces",
+		inputFile:     "testdata/tab.bad.mm",
+		wantExitError: true,
+	}, {
+		desc:          "correct boilerplate with old year",
+		inputFile:     "testdata/old.good.mm",
+		wantNoChanges: true,
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			// Copy the test file to temp directory
+			inputContent, err := os.ReadFile(tt.inputFile)
+			if err != nil {
+				t.Fatalf("Failed to read input file: %v", err)
+			}
+
+			testFile := filepath.Join(tmpDir, "test.mm")
+			if err := os.WriteFile(testFile, inputContent, 0644); err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			originalWd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get working directory: %v", err)
+			}
+			defer os.Chdir(originalWd)
+
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("Failed to change to temp directory: %v", err)
+			}
+
+			cmd := NewCheckCommand()
+			output := new(bytes.Buffer)
+			cmd.SetOut(output)
+			cmd.SetArgs([]string{
+				"--boilerplate", filepath.Join(originalWd, "testdata/boilerplate.mm.txt"),
+				"--file-extension", "mm",
+				"--fix",
+			})
+
+			err = cmd.Execute()
+			if tt.wantExitError {
+				if err == nil {
+					t.Errorf("Execute() succeeded, wanted error. Output: %s", output.String())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Execute() failed: %v", err)
+				}
+			}
+
+			// Read the fixed file
+			fixedContent, err := os.ReadFile(testFile)
+			if err != nil {
+				t.Fatalf("Failed to read fixed file: %v", err)
+			}
+
+			if tt.wantNoChanges {
+				if string(fixedContent) != string(inputContent) {
+					t.Errorf("File was modified when no changes were expected")
+				}
+			} else {
+				// Verify the fixed file now passes validation
+				cmd2 := NewCheckCommand()
+				output2 := new(bytes.Buffer)
+				cmd2.SetOut(output2)
+				cmd2.SetArgs([]string{
+					"--boilerplate", filepath.Join(originalWd, "testdata/boilerplate.mm.txt"),
+					"--file-extension", "mm",
+				})
+
+				if err := cmd2.Execute(); err != nil {
+					t.Errorf("Fixed file failed validation: %v\nOutput: %s", err, output2.String())
+				}
+
+				if output2.String() != "" {
+					t.Errorf("Fixed file has validation errors: %s", output2.String())
+				}
 			}
 		})
 	}

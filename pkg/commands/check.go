@@ -41,10 +41,12 @@ func NewCheckCommand() *cobra.Command {
 	co := &checkOptions{}
 
 	cmd := &cobra.Command{
-		Use:     "check",
-		Short:   "Checks that file headers match boilerplate files.",
-		PreRunE: co.PreRunE,
-		RunE:    co.RunE,
+		Use:           "check",
+		Short:         "Checks that file headers match boilerplate files.",
+		PreRunE:       co.PreRunE,
+		RunE:          co.RunE,
+		SilenceErrors: true,
+		SilenceUsage:  true,
 	}
 	co.AddFlags(cmd)
 	cmd.SetOut(os.Stdout)
@@ -56,9 +58,11 @@ type checkOptions struct {
 	BoilerplateFile string
 	FileExtension   string
 	ExcludePattern  string
+	Fix             bool
 
 	boilerplateLines []string
 	exclude          *regexp.Regexp
+	changesMade      bool
 }
 
 func (co *checkOptions) AddFlags(cmd *cobra.Command) {
@@ -68,6 +72,8 @@ func (co *checkOptions) AddFlags(cmd *cobra.Command) {
 		"The extension of files that should match this boilerplate.")
 	cmd.Flags().StringVarP(&co.ExcludePattern, "exclude", "", "",
 		"A pattern of files to exclude from consideration.")
+	cmd.Flags().BoolVarP(&co.Fix, "fix", "", false,
+		"Update files with expected boilerplate lines.")
 }
 
 func (co *checkOptions) PreRunE(cmd *cobra.Command, args []string) error {
@@ -121,7 +127,7 @@ func (co *checkOptions) match(path string) bool {
 }
 
 func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
-	return filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -155,6 +161,14 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if !found {
+			if co.Fix {
+				if err := co.fixMissingBoilerplate(path); err != nil {
+					return err
+				}
+				co.changesMade = true
+				cmd.Printf("%s: added missing boilerplate\n", path)
+				return nil
+			}
 			cmd.Printf("%s:%d: missing boilerplate:\n%s",
 				path, 1, denormalize(strings.Join(co.boilerplateLines, "\n")))
 			return nil
@@ -165,6 +179,14 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 
 		for range co.boilerplateLines[1:] {
 			if !scanner.Scan() {
+				if co.Fix {
+					if err := co.fixIncompleteBoilerplate(path, idx, len(lines)); err != nil {
+						return err
+					}
+					co.changesMade = true
+					cmd.Printf("%s: fixed incomplete boilerplate\n", path)
+					return nil
+				}
 				cmd.Printf("%s:%d: incomplete boilerplate, missing:\n%s", path, idx,
 					denormalize(strings.Join(co.boilerplateLines[len(lines):], "\n")))
 				return nil
@@ -178,6 +200,14 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 		// isn't part of the diff, then reviewdog will filter the error.
 		for i := range lines {
 			if co.boilerplateLines[i] != lines[i] {
+				if co.Fix {
+					if err := co.fixMismatchedBoilerplate(path, idx, i); err != nil {
+						return err
+					}
+					co.changesMade = true
+					cmd.Printf("%s: fixed mismatched boilerplate\n", path)
+					return nil
+				}
 				cmd.Printf("%s:%d: found mismatched boilerplate lines:\n%s",
 					path, idx+i, denormalize(cmp.Diff(co.boilerplateLines[i:], lines[i:])))
 				break
@@ -185,6 +215,13 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if co.Fix && co.changesMade {
+		return errors.New("files were updated")
+	}
+	return nil
 }
 
 // TODO(mattmoor): Fix this y10k bug.
@@ -200,4 +237,58 @@ func normalize(line string) string {
 // denormalize replaces YYYY with the current year.
 func denormalize(line string) string {
 	return strings.ReplaceAll(line, "YYYY", fmt.Sprint(time.Now().Year()))
+}
+
+func (co *checkOptions) fixMissingBoilerplate(path string) error {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	boilerplate := denormalize(strings.Join(co.boilerplateLines, "\n")) + "\n"
+	newContent := boilerplate + string(content)
+
+	return ioutil.WriteFile(path, []byte(newContent), 0644)
+}
+
+func (co *checkOptions) fixIncompleteBoilerplate(path string, startLine int, linesRead int) error {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(content), "\n")
+	correctBoilerplate := make([]string, len(co.boilerplateLines))
+	for i, line := range co.boilerplateLines {
+		correctBoilerplate[i] = denormalize(line)
+	}
+
+	// Replace the incomplete boilerplate starting at startLine-1 (0-indexed)
+	result := make([]string, 0, len(lines))
+	result = append(result, lines[:startLine-1]...)
+	result = append(result, correctBoilerplate...)
+	result = append(result, lines[startLine-1+linesRead:]...)
+
+	return ioutil.WriteFile(path, []byte(strings.Join(result, "\n")), 0644)
+}
+
+func (co *checkOptions) fixMismatchedBoilerplate(path string, startLine int, _ int) error {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(content), "\n")
+	correctBoilerplate := make([]string, len(co.boilerplateLines))
+	for i, line := range co.boilerplateLines {
+		correctBoilerplate[i] = denormalize(line)
+	}
+
+	// Replace the boilerplate lines starting at startLine-1 (0-indexed)
+	result := make([]string, 0, len(lines))
+	result = append(result, lines[:startLine-1]...)
+	result = append(result, correctBoilerplate...)
+	result = append(result, lines[startLine-1+len(co.boilerplateLines):]...)
+
+	return ioutil.WriteFile(path, []byte(strings.Join(result, "\n")), 0644)
 }
