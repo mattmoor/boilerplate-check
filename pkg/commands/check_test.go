@@ -213,8 +213,8 @@ limitations under the License.
 			cmd.SetArgs(test.args)
 
 			err := cmd.Execute()
-			if err != nil {
-				t.Errorf("Execute() = %v", err)
+			if err == nil {
+				t.Errorf("Execute() succeeded, wanted error due to boilerplate issues")
 			}
 
 			got := output.String()
@@ -231,26 +231,32 @@ func TestCheckFix(t *testing.T) {
 		inputFile     string
 		wantExitError bool
 		wantNoChanges bool
+		wantFixed     bool
 	}{{
 		desc:          "typo in copyright name",
 		inputFile:     "testdata/typo.bad.mm",
 		wantExitError: true,
+		wantFixed:     false,
 	}, {
 		desc:          "incomplete boilerplate",
 		inputFile:     "testdata/short.bad.mm",
 		wantExitError: true,
+		wantFixed:     false,
 	}, {
 		desc:          "missing boilerplate",
 		inputFile:     "testdata/missing.bad.mm",
 		wantExitError: true,
+		wantFixed:     true,
 	}, {
 		desc:          "https instead of http",
 		inputFile:     "testdata/https.bad.mm",
 		wantExitError: true,
+		wantFixed:     false,
 	}, {
 		desc:          "tab instead of spaces",
 		inputFile:     "testdata/tab.bad.mm",
 		wantExitError: true,
+		wantFixed:     false,
 	}, {
 		desc:          "correct boilerplate with old year",
 		inputFile:     "testdata/old.good.mm",
@@ -312,7 +318,7 @@ func TestCheckFix(t *testing.T) {
 				if string(fixedContent) != string(inputContent) {
 					t.Errorf("File was modified when no changes were expected")
 				}
-			} else {
+			} else if tt.wantFixed {
 				// Verify the fixed file now passes validation
 				cmd2 := NewCheckCommand()
 				output2 := new(bytes.Buffer)
@@ -328,6 +334,11 @@ func TestCheckFix(t *testing.T) {
 
 				if output2.String() != "" {
 					t.Errorf("Fixed file has validation errors: %s", output2.String())
+				}
+			} else {
+				// File should not have been modified
+				if string(fixedContent) != string(inputContent) {
+					t.Errorf("File was modified when it should not have been (incomplete/mismatched boilerplate should not be fixed)")
 				}
 			}
 		})

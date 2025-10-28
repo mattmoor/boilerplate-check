@@ -62,7 +62,7 @@ type checkOptions struct {
 
 	boilerplateLines []string
 	exclude          *regexp.Regexp
-	changesMade      bool
+	issuesFound      bool
 }
 
 func (co *checkOptions) AddFlags(cmd *cobra.Command) {
@@ -165,12 +165,13 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 				if err := co.fixMissingBoilerplate(path); err != nil {
 					return err
 				}
-				co.changesMade = true
+				co.issuesFound = true
 				cmd.Printf("%s: added missing boilerplate\n", path)
 				return nil
 			}
 			cmd.Printf("%s:%d: missing boilerplate:\n%s",
 				path, 1, denormalize(strings.Join(co.boilerplateLines, "\n")))
+			co.issuesFound = true
 			return nil
 		}
 
@@ -179,16 +180,9 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 
 		for range co.boilerplateLines[1:] {
 			if !scanner.Scan() {
-				if co.Fix {
-					if err := co.fixIncompleteBoilerplate(path, idx, len(lines)); err != nil {
-						return err
-					}
-					co.changesMade = true
-					cmd.Printf("%s: fixed incomplete boilerplate\n", path)
-					return nil
-				}
 				cmd.Printf("%s:%d: incomplete boilerplate, missing:\n%s", path, idx,
 					denormalize(strings.Join(co.boilerplateLines[len(lines):], "\n")))
+				co.issuesFound = true
 				return nil
 			}
 
@@ -200,16 +194,9 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 		// isn't part of the diff, then reviewdog will filter the error.
 		for i := range lines {
 			if co.boilerplateLines[i] != lines[i] {
-				if co.Fix {
-					if err := co.fixMismatchedBoilerplate(path, idx, i); err != nil {
-						return err
-					}
-					co.changesMade = true
-					cmd.Printf("%s: fixed mismatched boilerplate\n", path)
-					return nil
-				}
 				cmd.Printf("%s:%d: found mismatched boilerplate lines:\n%s",
 					path, idx+i, denormalize(cmp.Diff(co.boilerplateLines[i:], lines[i:])))
+				co.issuesFound = true
 				break
 			}
 		}
@@ -218,8 +205,8 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if co.Fix && co.changesMade {
-		return errors.New("files were updated")
+	if co.issuesFound {
+		return errors.New("boilerplate issues found")
 	}
 	return nil
 }
@@ -249,46 +236,4 @@ func (co *checkOptions) fixMissingBoilerplate(path string) error {
 	newContent := boilerplate + string(content)
 
 	return ioutil.WriteFile(path, []byte(newContent), 0644)
-}
-
-func (co *checkOptions) fixIncompleteBoilerplate(path string, startLine int, linesRead int) error {
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(string(content), "\n")
-	correctBoilerplate := make([]string, len(co.boilerplateLines))
-	for i, line := range co.boilerplateLines {
-		correctBoilerplate[i] = denormalize(line)
-	}
-
-	// Replace the incomplete boilerplate starting at startLine-1 (0-indexed)
-	result := make([]string, 0, len(lines))
-	result = append(result, lines[:startLine-1]...)
-	result = append(result, correctBoilerplate...)
-	result = append(result, lines[startLine-1+linesRead:]...)
-
-	return ioutil.WriteFile(path, []byte(strings.Join(result, "\n")), 0644)
-}
-
-func (co *checkOptions) fixMismatchedBoilerplate(path string, startLine int, _ int) error {
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(string(content), "\n")
-	correctBoilerplate := make([]string, len(co.boilerplateLines))
-	for i, line := range co.boilerplateLines {
-		correctBoilerplate[i] = denormalize(line)
-	}
-
-	// Replace the boilerplate lines starting at startLine-1 (0-indexed)
-	result := make([]string, 0, len(lines))
-	result = append(result, lines[:startLine-1]...)
-	result = append(result, correctBoilerplate...)
-	result = append(result, lines[startLine-1+len(co.boilerplateLines):]...)
-
-	return ioutil.WriteFile(path, []byte(strings.Join(result, "\n")), 0644)
 }
