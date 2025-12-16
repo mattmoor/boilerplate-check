@@ -229,37 +229,51 @@ func TestCheckFix(t *testing.T) {
 	tests := []struct {
 		desc          string
 		inputFile     string
+		boilerplate   string
+		fileExtension string
 		wantExitError bool
 		wantNoChanges bool
 		wantFixed     bool
 	}{{
 		desc:          "typo in copyright name",
 		inputFile:     "testdata/typo.bad.mm",
+		boilerplate:   "testdata/boilerplate.mm.txt",
+		fileExtension: "mm",
 		wantExitError: true,
 		wantFixed:     false,
 	}, {
 		desc:          "incomplete boilerplate",
 		inputFile:     "testdata/short.bad.mm",
+		boilerplate:   "testdata/boilerplate.mm.txt",
+		fileExtension: "mm",
 		wantExitError: true,
 		wantFixed:     false,
 	}, {
 		desc:          "missing boilerplate",
 		inputFile:     "testdata/missing.bad.mm",
+		boilerplate:   "testdata/boilerplate.mm.txt",
+		fileExtension: "mm",
 		wantExitError: true,
 		wantFixed:     true,
 	}, {
 		desc:          "https instead of http",
 		inputFile:     "testdata/https.bad.mm",
+		boilerplate:   "testdata/boilerplate.mm.txt",
+		fileExtension: "mm",
 		wantExitError: true,
 		wantFixed:     false,
 	}, {
 		desc:          "tab instead of spaces",
 		inputFile:     "testdata/tab.bad.mm",
+		boilerplate:   "testdata/boilerplate.mm.txt",
+		fileExtension: "mm",
 		wantExitError: true,
 		wantFixed:     false,
 	}, {
 		desc:          "correct boilerplate with old year",
 		inputFile:     "testdata/old.good.mm",
+		boilerplate:   "testdata/boilerplate.mm.txt",
+		fileExtension: "mm",
 		wantNoChanges: true,
 	}}
 
@@ -273,7 +287,7 @@ func TestCheckFix(t *testing.T) {
 				t.Fatalf("Failed to read input file: %v", err)
 			}
 
-			testFile := filepath.Join(tmpDir, "test.mm")
+			testFile := filepath.Join(tmpDir, "test."+tt.fileExtension)
 			if err := os.WriteFile(testFile, inputContent, 0644); err != nil {
 				t.Fatalf("Failed to write test file: %v", err)
 			}
@@ -292,8 +306,8 @@ func TestCheckFix(t *testing.T) {
 			output := new(bytes.Buffer)
 			cmd.SetOut(output)
 			cmd.SetArgs([]string{
-				"--boilerplate", filepath.Join(originalWd, "testdata/boilerplate.mm.txt"),
-				"--file-extension", "mm",
+				"--boilerplate", filepath.Join(originalWd, tt.boilerplate),
+				"--file-extension", tt.fileExtension,
 				"--fix",
 			})
 
@@ -324,8 +338,8 @@ func TestCheckFix(t *testing.T) {
 				output2 := new(bytes.Buffer)
 				cmd2.SetOut(output2)
 				cmd2.SetArgs([]string{
-					"--boilerplate", filepath.Join(originalWd, "testdata/boilerplate.mm.txt"),
-					"--file-extension", "mm",
+					"--boilerplate", filepath.Join(originalWd, tt.boilerplate),
+					"--file-extension", tt.fileExtension,
 				})
 
 				if err := cmd2.Execute(); err != nil {
