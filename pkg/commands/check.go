@@ -34,6 +34,7 @@ import (
 var (
 	ErrBoilerplateRequired   = errors.New("--boilerplate is a required flag.")
 	ErrFileExtensionRequired = errors.New("--file-extension is a required flag.")
+	ErrBoilerplateExists     = errors.New("boilerplate already exists in file")
 )
 
 // NewCheckCommand implements the `check` sub-command
@@ -163,6 +164,12 @@ func (co *checkOptions) RunE(cmd *cobra.Command, args []string) error {
 		if !found {
 			if co.Fix {
 				if err := co.fixMissingBoilerplate(path); err != nil {
+					if errors.Is(err, ErrBoilerplateExists) {
+						// Boilerplate exists beyond line 10, don't modify the file
+						cmd.Printf("%s: boilerplate found beyond line 10, not in expected location\n", path)
+						co.issuesFound = true
+						return nil
+					}
 					return err
 				}
 				co.issuesFound = true
