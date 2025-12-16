@@ -44,7 +44,7 @@ jobs:
           go-version: 1.25.x
 
       - name: Install Dependencies
-        run: GO111MODULE=on go get k8s.io/release/cmd/release-notes
+        run: go install k8s.io/release/cmd/release-notes
 
       - name: Check out code
         uses: actions/checkout@v2

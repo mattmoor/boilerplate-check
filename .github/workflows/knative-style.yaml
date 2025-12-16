@@ -52,7 +52,7 @@ jobs:
         if: ${{ matrix.importpath != '' }}
         run: |
           cd $(mktemp -d)
-          GO111MODULE=on go get ${{ matrix.importpath }}
+          go install ${{ matrix.importpath }}
 
       - name: ${{ matrix.tool }} ${{ matrix.options }}
         shell: bash
