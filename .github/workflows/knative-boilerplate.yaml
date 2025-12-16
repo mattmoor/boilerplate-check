@@ -19,10 +19,9 @@ name: Boilerplate
 
 on:
   pull_request:
-    branches: [ 'main', 'master', 'release-*' ]
+    branches: ["main", "master", "release-*"]
 
 jobs:
-
   check:
     name: Boilerplate Check
     runs-on: ubuntu-latest
@@ -30,22 +29,21 @@ jobs:
       fail-fast: false # Keep running if one leg fails.
       matrix:
         extension:
-        - go
-        - sh
+          - go
+          - sh
 
         # Map between extension and human-readable name.
         include:
-        - extension: go
-          language: Go
-        - extension: sh
-          language: Bash
+          - extension: go
+            language: Go
+          - extension: sh
+            language: Bash
 
     steps:
-
-      - name: Set up Go 1.15.x
+      - name: Set up Go 1.25.x
         uses: actions/setup-go@v2
         with:
-          go-version: 1.15.x
+          go-version: 1.25.x
         id: go
 
       - name: Check out code
@@ -61,7 +59,7 @@ jobs:
           echo '::endgroup::'
 
           echo '::group:: Installing boilerplate-check ... https://github.com/mattmoor/boilerplate-check'
-          go get github.com/mattmoor/boilerplate-check/cmd/boilerplate-check
+          go install github.com/mattmoor/boilerplate-check/cmd/boilerplate-check@latest
           echo '::endgroup::'
 
           echo "${TEMP_PATH}" >> $GITHUB_PATH

@@ -15,24 +15,24 @@
 # This file is automagically synced here from github.com/knative-sandbox/.github
 # repo by knobots: https://github.com/knative-sandbox/knobots and will be overwritten.
 
-name: 'Release Notes'
+name: "Release Notes"
 
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch? (master)'
+        description: "Branch? (master)"
         required: true
-        default: 'master'
+        default: "master"
       start-sha:
-        description: 'Starting SHA? (last tag on branch)'
+        description: "Starting SHA? (last tag on branch)"
       end-sha:
-        description: 'Ending SHA? (latest HEAD)'
+        description: "Ending SHA? (latest HEAD)"
 
 jobs:
   release-notes:
     name: Release Notes
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
 
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -41,10 +41,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.15.x
+          go-version: 1.25.x
 
       - name: Install Dependencies
-        run: GO111MODULE=on go get k8s.io/release/cmd/release-notes
+        run: go install k8s.io/release/cmd/release-notes@latest
 
       - name: Check out code
         uses: actions/checkout@v2

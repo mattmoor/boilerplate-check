@@ -19,21 +19,19 @@ name: Build
 
 on:
   pull_request:
-    branches: [ 'main', 'master', 'release-*' ]
+    branches: ["main", "master", "release-*"]
 
 jobs:
-
   build:
     name: Build
     strategy:
       matrix:
-        go-version: [1.15.x]
+        go-version: [1.25.x]
         platform: [ubuntu-latest]
 
     runs-on: ${{ matrix.platform }}
 
     steps:
-
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v2
         with:
@@ -56,4 +54,3 @@ jobs:
 
           echo "Building with tags: ${tags}"
           go test -vet=off -tags "${tags}" -run=^$ ./... | grep -v "no test" || true
-
