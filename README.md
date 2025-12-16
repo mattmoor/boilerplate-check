@@ -9,7 +9,7 @@ year, so that old files don't become false positives.
 You can install `boilerplate-check` with:
 
 ```
-go get github.com/mattmoor/boilerplate-check
+go install github.com/mattmoor/boilerplate-check@latest
 ```
 
 ## Running
@@ -114,7 +114,7 @@ jobs:
           echo '::endgroup::'
 
           echo '::group:: Installing boilerplate-check ... https://github.com/mattmoor/boilerplate-check'
-          go get github.com/mattmoor/boilerplate-check/cmd/boilerplate-check
+          go install github.com/mattmoor/boilerplate-check/cmd/boilerplate-check@latest
           echo '::endgroup::'
 
           echo "::add-path::${TEMP_PATH}"
